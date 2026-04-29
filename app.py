@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
 from datetime import datetime, timedelta
+from typing import Optional
 import jwt
 import bcrypt
 from db import db
@@ -11,7 +12,6 @@ from models import (
     ExpenseCreate, ExpenseUpdate, ExpenseResponse,
     CategorySummary, ExpenseSummary
 )
-from typing import Optional
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -70,7 +70,7 @@ def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None)
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def verify_token(credentials: HTTPAuthCredentials = Depends(security)) -> int:
+def verify_token(credentials = Depends(security)) -> int:
     """Verify JWT token and return user_id"""
     token = credentials.credentials
     try:

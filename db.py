@@ -1,7 +1,13 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import os
+from pathlib import Path
 from typing import List, Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Load .env file
+env_path = Path(__file__).parent / '.env'
+load_dotenv(env_path)
 
 class Database:
     def __init__(self, database_url):
@@ -11,9 +17,9 @@ class Database:
     def connect(self):
         """Establish connection to NeonDB"""
         try:
-            self.connection = psycopg2.connect(self.database_url, sslmode='require')
+            self.connection = psycopg.connect(self.database_url, row_factory=dict_row)
             print("✓ Connected to NeonDB")
-        except (Exception, psycopg2.DatabaseError) as error:
+        except (Exception, psycopg.Error) as error:
             print(f"✗ Error connecting to NeonDB: {error}")
             raise
 
@@ -29,12 +35,11 @@ class Database:
             self.connect()
         
         try:
-            cursor = self.connection.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(query, params or ())
-            results = cursor.fetchall()
-            cursor.close()
-            return results if results else []
-        except (Exception, psycopg2.DatabaseError) as error:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                results = cursor.fetchall()
+                return results if results else []
+        except (Exception, psycopg.Error) as error:
             print(f"✗ Query error: {error}")
             raise
 
@@ -44,13 +49,12 @@ class Database:
             self.connect()
         
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(query, params or ())
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                rows_affected = cursor.rowcount
             self.connection.commit()
-            rows_affected = cursor.rowcount
-            cursor.close()
             return rows_affected
-        except (Exception, psycopg2.DatabaseError) as error:
+        except (Exception, psycopg.Error) as error:
             self.connection.rollback()
             print(f"✗ Update error: {error}")
             raise
@@ -61,13 +65,12 @@ class Database:
             self.connect()
         
         try:
-            cursor = self.connection.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(query, params or ())
-            result = cursor.fetchone()
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                result = cursor.fetchone()
             self.connection.commit()
-            cursor.close()
             return result
-        except (Exception, psycopg2.DatabaseError) as error:
+        except (Exception, psycopg.Error) as error:
             self.connection.rollback()
             print(f"✗ Insert error: {error}")
             raise
