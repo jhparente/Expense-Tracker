@@ -110,7 +110,7 @@ class Database:
             self.connection.commit()
             cursor.close()
             print("✓ Database schema initialized")
-        except (Exception, psycopg2.DatabaseError) as error:
+        except (Exception, psycopg.Error) as error:
             self.connection.rollback()
             print(f"✗ Error initializing schema: {error}")
             raise
