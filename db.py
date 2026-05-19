@@ -31,10 +31,17 @@ class Database:
 
     def execute_query(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
         """Execute a SELECT query and return results"""
-        if not self.connection:
+        if not self.connection or self.connection.closed:
             self.connect()
         
         try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                results = cursor.fetchall()
+                return results if results else []
+        except psycopg.OperationalError as error:
+            print(f"✗ Connection error: {error}. Reconnecting...")
+            self.connect()
             with self.connection.cursor() as cursor:
                 cursor.execute(query, params or ())
                 results = cursor.fetchall()
@@ -45,7 +52,7 @@ class Database:
 
     def execute_update(self, query: str, params: tuple = None) -> int:
         """Execute INSERT, UPDATE, or DELETE query"""
-        if not self.connection:
+        if not self.connection or self.connection.closed:
             self.connect()
         
         try:
@@ -54,14 +61,23 @@ class Database:
                 rows_affected = cursor.rowcount
             self.connection.commit()
             return rows_affected
+        except psycopg.OperationalError as error:
+            print(f"✗ Connection error: {error}. Reconnecting...")
+            self.connect()
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                rows_affected = cursor.rowcount
+            self.connection.commit()
+            return rows_affected
         except (Exception, psycopg.Error) as error:
-            self.connection.rollback()
+            if self.connection and not self.connection.closed:
+                self.connection.rollback()
             print(f"✗ Update error: {error}")
             raise
 
     def execute_insert_with_return(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
         """Execute INSERT query and return the created row"""
-        if not self.connection:
+        if not self.connection or self.connection.closed:
             self.connect()
         
         try:
@@ -70,8 +86,17 @@ class Database:
                 result = cursor.fetchone()
             self.connection.commit()
             return result
+        except psycopg.OperationalError as error:
+            print(f"✗ Connection error: {error}. Reconnecting...")
+            self.connect()
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                result = cursor.fetchone()
+            self.connection.commit()
+            return result
         except (Exception, psycopg.Error) as error:
-            self.connection.rollback()
+            if self.connection and not self.connection.closed:
+                self.connection.rollback()
             print(f"✗ Insert error: {error}")
             raise
 
