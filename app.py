@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from collections import defaultdict, deque
@@ -166,9 +166,12 @@ async def health_check():
         "database": "connected"
     }
 
+# Create API router
+api_router = APIRouter(prefix="/api/v1")
+
 # ============= Authentication Routes =============
 
-@app.post(
+@api_router.post(
     "/auth/register",
     response_model=TokenResponse,
     dependencies=[Depends(rate_limit("register", *RATE_LIMITS["register"]))],
@@ -206,7 +209,7 @@ async def register(user_data: UserRegister):
             detail=f"Registration failed: {str(e)}"
         )
 
-@app.post(
+@api_router.post(
     "/auth/login",
     response_model=TokenResponse,
 )
@@ -277,7 +280,7 @@ async def login(credentials: UserLogin, request: Request):
             detail=f"Login failed: {str(e)}"
         )
 
-@app.get("/auth/me", response_model=UserResponse)
+@api_router.get("/auth/me", response_model=UserResponse)
 async def get_current_user(user_id: int = Depends(verify_token)):
     """Get current authenticated user"""
     try:
@@ -296,7 +299,7 @@ async def get_current_user(user_id: int = Depends(verify_token)):
 
 # ============= Category Routes =============
 
-@app.get("/categories", response_model=list[CategoryResponse])
+@api_router.get("/categories", response_model=list[CategoryResponse])
 async def list_categories(user_id: int = Depends(verify_token)):
     """List categories for the authenticated user"""
     try:
@@ -308,7 +311,7 @@ async def list_categories(user_id: int = Depends(verify_token)):
             detail=f"Error fetching categories: {str(e)}"
         )
 
-@app.post(
+@api_router.post(
     "/categories",
     response_model=CategoryResponse,
     status_code=status.HTTP_201_CREATED,
@@ -338,7 +341,7 @@ async def create_category(category: CategoryCreate, user_id: int = Depends(verif
 
 # ============= Expense Routes =============
 
-@app.get("/expenses", response_model=list[ExpenseResponse])
+@api_router.get("/expenses", response_model=list[ExpenseResponse])
 async def get_expenses(user_id: int = Depends(verify_token)):
     """Get all expenses for the authenticated user"""
     try:
@@ -350,7 +353,7 @@ async def get_expenses(user_id: int = Depends(verify_token)):
             detail=f"Error fetching expenses: {str(e)}"
         )
 
-@app.get("/expenses/{expense_id}", response_model=ExpenseResponse)
+@api_router.get("/expenses/{expense_id}", response_model=ExpenseResponse)
 async def get_expense(expense_id: int, user_id: int = Depends(verify_token)):
     """Get a specific expense"""
     try:
@@ -369,7 +372,7 @@ async def get_expense(expense_id: int, user_id: int = Depends(verify_token)):
             detail=f"Error fetching expense: {str(e)}"
         )
 
-@app.post(
+@api_router.post(
     "/expenses",
     response_model=ExpenseResponse,
     status_code=status.HTTP_201_CREATED,
@@ -399,7 +402,7 @@ async def create_expense(expense_data: ExpenseCreate, user_id: int = Depends(ver
             detail=f"Error creating expense: {str(e)}"
         )
 
-@app.put(
+@api_router.put(
     "/expenses/{expense_id}",
     response_model=ExpenseResponse,
     dependencies=[Depends(rate_limit("expense_write", *RATE_LIMITS["expense_write"]))],
@@ -456,7 +459,7 @@ async def update_expense(
             detail=f"Error updating expense: {str(e)}"
         )
 
-@app.delete(
+@api_router.delete(
     "/expenses/{expense_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(rate_limit("expense_write", *RATE_LIMITS["expense_write"]))],
@@ -489,7 +492,7 @@ async def delete_expense(expense_id: int, user_id: int = Depends(verify_token)):
 
 # ============= Summary Routes =============
 
-@app.get("/summary", response_model=ExpenseSummary)
+@api_router.get("/summary", response_model=ExpenseSummary)
 async def get_summary(user_id: int = Depends(verify_token)):
     """Get expense summary for the authenticated user"""
     try:
@@ -522,7 +525,7 @@ async def get_summary(user_id: int = Depends(verify_token)):
             detail=f"Error fetching summary: {str(e)}"
         )
 
-@app.get("/summary/periods", response_model=PeriodSummary)
+@api_router.get("/summary/periods", response_model=PeriodSummary)
 async def get_period_summary(user_id: int = Depends(verify_token)):
     """Get total spent for day, week, and month"""
     try:
@@ -571,6 +574,8 @@ async def root():
             "summary_periods": "GET /summary/periods"
         }
     }
+
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
