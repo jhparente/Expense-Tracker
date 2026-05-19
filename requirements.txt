@@ -8,6 +8,7 @@ email_validator==2.1.1
 fastapi==0.109.0
 h11==0.16.0
 idna==3.13
+psycopg
 psycopg-binary
 pydantic==2.9.0
 pydantic-settings==2.2.1
